@@ -275,12 +275,13 @@ def run(config):
                 mn.pop(next(iter(mn)))
 
     print("\n\n")
-    print("best scores:")
-    print(*mn)
-    print(*[mn[i] for i in mn])
-    print('worst scores:')
-    print(*mx)
-    print(*[mx[i] for i in mx])
+    print("! best scores:")
+    print(*mn, sep=" | ")
+    print(*[mn[i] for i in mn],sep=" | ")
+    print()
+    print('! worst scores:')
+    print(*mx, sep=" | ")
+    print(*[mx[i] for i in mx],sep=" | ")
 
     return rows
 
