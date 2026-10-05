@@ -129,16 +129,16 @@ def run(config):
     )
 
 
-    all_seqs = list_seq(config.data_dir)
-    calib_seqs = all_seqs[:: config.calib_stride]
-    calib_names = {s.name for s in calib_seqs}
-    remaining = [s for s in all_seqs if s.name not in calib_names]
+    all_seqs= list_seq(config.data_dir)
+    calib_seqs= all_seqs[:: config.calib_stride]
+    calib_names= {s.name for s in calib_seqs}
+    remaining= [s for s in all_seqs if s.name not in calib_names]
 
     pairs = load_pairs(config.data_dir)
     pairs = [p for p in pairs if p.seq_name not in calib_names]
     if config.max_sequences is not None:
-        keep_names = {s.name for s in remaining[: config.max_sequences//2]}
-        keep_names = {s.name for s in remaining[-config.max_sequences//2:]}
+        keep_names={s.name for s in remaining[: config.max_sequences//2]}
+        keep_names={s.name for s in remaining[-config.max_sequences//2:]}
         pairs = [p for p in pairs if p.seq_name in keep_names]
 
     print(f"! всего последовательностей: {len(all_seqs)} | калибровка PCA: {len(calib_seqs)}, "
@@ -151,13 +151,14 @@ def run(config):
         config.resize,
     )
     variants = build_variants(pca_reducers, config.quant_bits)
-    print(f"! варианты: " + ", ".join(v["name"] for v in variants))
+    print(f"! варианты: "+", ".join(v["name"] for v in variants))
 
+    
     stats = {
-        v["name"]: {
-            "mma": {threshold: [] for threshold in MMA_THRESHOLDS},
-            "n_matches": [],
-            "corner_err": [],
+        v["name"]:{
+            "mma":{threshold: [] for threshold in MMA_THRESHOLDS},
+            "n_matches":[],
+            "corner_err":[],
         }
         for v in variants
     }
@@ -165,8 +166,8 @@ def run(config):
     feat_cache = {}
     for i, pair in enumerate(pairs):
         # получение данных о ключ. точках изобржений пары
-        feats0, hw0 = extract_features(extractor, pair.ref_path, config.resize, feat_cache)
-        feats1, hw1 = extract_features(extractor, pair.tgt_path, config.resize, feat_cache)
+        feats0, hw0= extract_features(extractor, pair.ref_path, config.resize, feat_cache)
+        feats1, hw1= extract_features(extractor, pair.tgt_path, config.resize, feat_cache)
 
         for v in variants:
             f0 = dict(feats0)
@@ -193,6 +194,7 @@ def run(config):
         if (i + 1) % 10 == 0 or i == len(pairs) - 1:            
             print(f"{i+1}/{len(pairs)}", flush=True)
 
+    
     rows = []
     for v in variants:
         name = v["name"]
@@ -248,6 +250,37 @@ def run(config):
             for line in string_metric(rows, header):
                 f.write(line)
         print(f"\n[сохранено] {out_path}")
+
+
+    bl=rows[0]
+    mx={'max':0}
+    mn={'min':0}
+    for i in rows[1:]:
+        for j in header:
+            if j==VARIANT_FIELD:
+                continue
+            v=i[j]
+            v_bl=bl[j]
+            abs_drop = v_bl - v
+            rel_drop = 100.0 * abs_drop/v_bl if v_bl != 0 else 0.0
+
+            if (mx[list(mx)[-1]]<=rel_drop):
+                mx[i[VARIANT_FIELD]]=rel_drop
+            if len(mx)>3:
+                mx.pop(next(iter(mx)))
+
+            if (mn[list(mn)[-1]]>=rel_drop):
+                mn[i[VARIANT_FIELD]]=rel_drop
+            if len(mn)>3:
+                mn.pop(next(iter(mn)))
+
+    print("\n\n")
+    print("best scores:")
+    print(*mn)
+    print(*[mn[i] for i in mn])
+    print('worst scores:')
+    print(*mx)
+    print(*[mx[i] for i in mx])
 
     return rows
 
